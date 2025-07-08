@@ -1,13 +1,13 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Path, Query, HTTPException
 from Book import Book
 from BookRequest import BookRequest
 app = FastAPI()
 
 BOOKS = [
-    Book(1, 'Science For Dummies', 'Jim Jimothy', "Great book", 4),
-    Book(2, "Computer Stuff", "Computer Guy", "Pretty Good Book", 3),
-    Book(3, "All About Sleep", "Albert Sleepyhead", "Great Book", 5),
-    Book(4, 'Getting To Know Your Inner Child', 'Dorris Kid', 'Fantastic', 5)
+    Book(1, 'Science For Dummies', 'Jim Jimothy', "Great book", 4, 2022),
+    Book(2, "Computer Stuff", "Computer Guy", "Pretty Good Book", 3, 1999),
+    Book(3, "All About Sleep", "Albert Sleepyhead", "Great Book", 5, 2022),
+    Book(4, 'Getting To Know Your Inner Child', 'Dorris Kid', 'Fantastic', 5, 2012)
 ]
 
 
@@ -16,19 +16,27 @@ async def get_all_books():
     return BOOKS
 
 @app.get("/books/{id}")
-async def get_book_by_id(id: int):
+async def get_book_by_id(id: int = Path(gt=0)):
     for book in BOOKS:
         if book.id == id:
             return book
+    raise HTTPException(status_code=404, detail="Item not found")
 
-@app.get("/books/")
-async def get_books_by_rating(rating: int):
-    selected_rating_books = []
+@app.get("/books/rating/")
+async def get_books_by_rating(rating: int = Query(gt=0,lt=6)):
+    books_by_rating = []
     for book in BOOKS:
         if book.rating == rating:
-            selected_rating_books.append(book)
-    return selected_rating_books
+            books_by_rating.append(book)
+    return books_by_rating
 
+@app.get("/books/publish/")
+async def get_books_by_year(year: int = Query(gt=1999,lt=2026)):
+    books_by_year = []
+    for book in BOOKS:
+        if book.published_date == year:
+            books_by_year.append(book)
+    return books_by_year
 
 @app.post("/create-book")
 async def create_book(book_request: BookRequest):
@@ -38,3 +46,24 @@ async def create_book(book_request: BookRequest):
 def find_book_id(book: Book):
     book.id = 1 if len(BOOKS) == 0 else BOOKS[-1].id + 1
     return book
+
+@app.put("/books/update-book")
+async def update_book(book: BookRequest):
+    book_updated = False
+    for i in range(len(BOOKS)):
+        if BOOKS[i].id == book.id:
+            BOOKS[i] = book
+            book_updated = True
+    if not book_updated:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+@app.delete("/books/{id}")
+async def delete_book(id: int = Path(gt=0)):
+    book_deleted = False
+    for i in range(len(BOOKS)):
+        if BOOKS[i].id == id:
+            BOOKS.pop(i)
+            book_deleted = True
+            break
+    if not book_deleted:
+        raise HTTPException(status_code=404, detail="Item not found")
